@@ -27,7 +27,7 @@ const password = randomBytes(32).toString("base64url");
 const passwordHash = await hashPassword(password);
 await query({ queries: [
   { query: 'insert into neon_auth."user" (id,name,email,"emailVerified","updatedAt") values ($1,$2,$3,true,now())', params: [id, "Preview Test", email] },
-  { query: 'insert into neon_auth.account (id,"accountId","providerId","userId",password,"updatedAt") values ($1,$2,\'credential\',$2,$3,now())', params: [randomUUID(), id, passwordHash] },
+  { query: 'insert into neon_auth.account (id,"accountId","providerId","userId",password,"updatedAt") values ($1::uuid,$2::text,\'credential\',$2::uuid,$3,now())', params: [randomUUID(), id, passwordHash] },
   { query: 'insert into public.users (id,email,email_confirmed_at,user_metadata) values ($1,$2,now(),$3::jsonb)', params: [id, email, JSON.stringify({ neon_auth_id: id, full_name: "Preview Test", preview_fixture: true })] },
   { query: 'insert into public.profiles (id,email,username,display_name,verified,verified_at,is_early_verified,preferred_language,blocks) values ($1,$2,$3,$4,true,now(),true,\'nl\',$5::jsonb)', params: [id, email, "test-preview", "Preview Test", JSON.stringify([{ id: "preview-booking", type: "booking_request", title: "Preview afspraak", value: JSON.stringify({ title: "Preview afspraak", note: "", duration: 30, mode: "direct", embedUrl: "", showSlots: true, eventTypeId: null }), enabled: true }])] },
 ] });
