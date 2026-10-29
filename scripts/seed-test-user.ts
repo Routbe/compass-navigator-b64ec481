@@ -12,7 +12,11 @@ async function query(body: object) {
     method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "X-Connection-Api-Key": connectionKey ?? "", "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`Preview seed failed (${response.status}); no credentials logged.`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({})) as { code?: string; message?: string };
+    const constraint = error.message?.match(/constraint "([a-z0-9_]+)"/i)?.[1];
+    throw new Error(`Preview seed failed (${response.status}, ${error.code ?? "unknown"}${constraint ? `, constraint ${constraint}` : ""}); no credentials logged.`);
+  }
   return response.json();
 }
 const email = "test_preview@rout.be";
