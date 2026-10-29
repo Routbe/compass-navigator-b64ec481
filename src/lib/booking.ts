@@ -39,6 +39,9 @@ export interface BookingConfig {
   mode: BookingMode;
   /** Cal.com / Google Calendar URL (alleen in embed-modus). */
   embedUrl: string;
+  /** Opt-in cached availability on the public profile. */
+  showSlots: boolean;
+  eventTypeId: string | null;
 }
 
 export const DEFAULT_BOOKING_CONFIG: BookingConfig = {
@@ -47,6 +50,8 @@ export const DEFAULT_BOOKING_CONFIG: BookingConfig = {
   duration: 30,
   mode: "direct",
   embedUrl: "",
+  showSlots: false,
+  eventTypeId: null,
 };
 
 export const BOOKING_MESSAGE_MAX = 500;
@@ -77,6 +82,8 @@ export function parseBookingConfig(value: string | null | undefined): BookingCon
       duration: asDuration(parsed.duration),
       mode: parsed.mode === "embed" ? "embed" : "direct",
       embedUrl: typeof parsed.embedUrl === "string" ? parsed.embedUrl.trim() : "",
+      showSlots: parsed.showSlots === true,
+      eventTypeId: typeof parsed.eventTypeId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.eventTypeId) ? parsed.eventTypeId : null,
     };
   } catch {
     return { ...DEFAULT_BOOKING_CONFIG };

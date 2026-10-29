@@ -2,6 +2,11 @@ import { useTranslation } from "react-i18next";
 import { useState, type CSSProperties } from "react";
 import { CalendarClock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { getNextBookingSlots } from "@/lib/booking-engine/booking.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Altcha } from "@/components/Altcha";
 import { takeProof } from "@/lib/altcha-client";
@@ -27,6 +32,21 @@ export function BookingCard({
   style: CSSProperties;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const nextSlots = useServerFn(getNextBookingSlots);
+  const availability = useQuery({
+    queryKey: ["profile-booking-slots", handle, config.eventTypeId],
+    queryFn: () => nextSlots({ data: { handle, eventTypeId: config.eventTypeId } }),
+    enabled: config.mode === "direct" && config.showSlots,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const openBooking = (start?: string) => {
+    const event = availability.data?.eventTypeId ?? config.eventTypeId;
+    if (config.mode === "direct" && (config.showSlots || event)) {
+      void navigate({ to: "/$username/booking", params: { username: handle }, search: { event: event ?? undefined, start } });
+    } else setOpen(true);
+  };
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -74,9 +94,10 @@ export function BookingCard({
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        onClick={() => setOpen(true)}
+        variant="ghost"
+        onClick={() => openBooking()}
         className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-opacity hover:opacity-80"
         style={style}
       >
@@ -85,7 +106,18 @@ export function BookingCard({
           {config.title || t("profile.bookingTitle")}
         </span>
         <span className="h-4 w-4 shrink-0" aria-hidden />
-      </button>
+      </Button>
+      {config.mode === "direct" && config.showSlots && (
+        <div className="flex flex-wrap justify-center gap-2 py-2">
+          {availability.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
+          {availability.data?.slots.slice(0, 3).map((start) => (
+            <Button key={start} variant="soft" size="sm" onClick={() => openBooking(start)}>
+              {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(start))}
+            </Button>
+          ))}
+          {availability.data && availability.data.slots.length === 0 && <p className="text-xs text-muted-foreground">{t("booking.public.noSlots")}</p>}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className={config.mode === "embed" ? "max-w-3xl p-0" : "max-w-md"}>
