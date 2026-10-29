@@ -25,6 +25,9 @@
 - Emailed action links (review, booking) only confirm on GET, change on POST; status mails send fire-and-forget. Why: scanners open links; mail failures never block actions.
 - 2FA/passkeys: Better Auth `twoFactor` + `@better-auth/passkey`, tables in `neon_auth` (db/77). Why: no custom crypto.
 - Apply migrations with bun scripts/migrate-gateway.ts: statements split, one batch per transaction, tracked in schema_migrations. Why: gateway rejects multi-statement queries.
+- Applied migrations are immutable; corrections use new delta files and checksum drift is reported, never silently repaired. Why: database history must remain reproducible.
+- Booking intake uses booking-engine/intake.ts for shared validation and sensitive-answer separation; external AI paths must never receive answers. Why: guest medical and dietary data stay private.
+- Profile booking navigation uses typed /$username/booking search context; selected UTC starts are accepted only when offered by current availability. Why: no hard reloads or trusting stale URL slots.
 - Deployment mode comes only from `src/lib/app-mode.ts` (`VITE_APP_MODE`/`APP_MODE`): `appModeMiddleware` in `src/start.ts` 404s admin paths in public mode and confines admin mode to the portal (noindex), `assertAdminRole` refuses in public mode, and `api_.auth.$.ts` refuses social providers in admin mode. Why: the split must hold server-side, never only in the UI.
 - Build mode filters route files via app-mode-routes.ts; admin files use admin.* names. Why: public bundles must exclude admin code.
 - Shells load lazily; preview mode overrides are UI-only. Why: previews never loosen server access.

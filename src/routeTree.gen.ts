@@ -45,6 +45,7 @@ import { Route as VcardQrRouteImport } from './routes/vcard-qr'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WifiQrRouteImport } from './routes/wifi-qr'
 import { Route as UsernameSlugRouteImport } from './routes/$username.$slug'
+import { Route as UsernameBookingRouteImport } from './routes/$username.booking'
 import { Route as UsernameDonateRouteImport } from './routes/$username.donate'
 import { Route as UsernameTipRouteImport } from './routes/$username.tip'
 import { Route as DotwellKnownAtprotoDidRouteImport } from './routes/[.]well-known.atproto-did'
@@ -357,6 +358,11 @@ const WifiQrRoute = WifiQrRouteImport.update({
 const UsernameSlugRoute = UsernameSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
+  getParentRoute: () => UsernameRoute,
+} as any)
+const UsernameBookingRoute = UsernameBookingRouteImport.update({
+  id: '/booking',
+  path: '/booking',
   getParentRoute: () => UsernameRoute,
 } as any)
 const UsernameDonateRoute = UsernameDonateRouteImport.update({
@@ -1125,6 +1131,7 @@ export interface FileRoutesByFullPath {
   '/verify': typeof VerifyRoute
   '/wifi-qr': typeof WifiQrRoute
   '/$username/$slug': typeof UsernameSlugRoute
+  '/$username/booking': typeof UsernameBookingRoute
   '/$username/donate': typeof UsernameDonateRoute
   '/$username/tip': typeof UsernameTipRoute
   '/.well-known/atproto-did': typeof DotwellKnownAtprotoDidRoute
@@ -1295,6 +1302,7 @@ export interface FileRoutesByTo {
   '/verify': typeof VerifyRoute
   '/wifi-qr': typeof WifiQrRoute
   '/$username/$slug': typeof UsernameSlugRoute
+  '/$username/booking': typeof UsernameBookingRoute
   '/$username/donate': typeof UsernameDonateRoute
   '/$username/tip': typeof UsernameTipRoute
   '/.well-known/atproto-did': typeof DotwellKnownAtprotoDidRoute
@@ -1464,6 +1472,7 @@ export interface FileRoutesById {
   '/verify': typeof VerifyRoute
   '/wifi-qr': typeof WifiQrRoute
   '/$username/$slug': typeof UsernameSlugRoute
+  '/$username/booking': typeof UsernameBookingRoute
   '/$username/donate': typeof UsernameDonateRoute
   '/$username/tip': typeof UsernameTipRoute
   '/.well-known/atproto-did': typeof DotwellKnownAtprotoDidRoute
@@ -1637,6 +1646,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/wifi-qr'
     | '/$username/$slug'
+    | '/$username/booking'
     | '/$username/donate'
     | '/$username/tip'
     | '/.well-known/atproto-did'
@@ -1807,6 +1817,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/wifi-qr'
     | '/$username/$slug'
+    | '/$username/booking'
     | '/$username/donate'
     | '/$username/tip'
     | '/.well-known/atproto-did'
@@ -1975,6 +1986,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/wifi-qr'
     | '/$username/$slug'
+    | '/$username/booking'
     | '/$username/donate'
     | '/$username/tip'
     | '/.well-known/atproto-did'
@@ -2477,6 +2489,13 @@ declare module '@tanstack/react-router' {
       path: '/$slug'
       fullPath: '/$username/$slug'
       preLoaderRoute: typeof UsernameSlugRouteImport
+      parentRoute: typeof UsernameRoute
+    }
+    '/$username/booking': {
+      id: '/$username/booking'
+      path: '/booking'
+      fullPath: '/$username/booking'
+      preLoaderRoute: typeof UsernameBookingRouteImport
       parentRoute: typeof UsernameRoute
     }
     '/$username/donate': {
@@ -3422,12 +3441,14 @@ declare module '@tanstack/react-router' {
 
 interface UsernameRouteChildren {
   UsernameSlugRoute: typeof UsernameSlugRoute
+  UsernameBookingRoute: typeof UsernameBookingRoute
   UsernameDonateRoute: typeof UsernameDonateRoute
   UsernameTipRoute: typeof UsernameTipRoute
 }
 
 const UsernameRouteChildren: UsernameRouteChildren = {
   UsernameSlugRoute: UsernameSlugRoute,
+  UsernameBookingRoute: UsernameBookingRoute,
   UsernameDonateRoute: UsernameDonateRoute,
   UsernameTipRoute: UsernameTipRoute,
 }

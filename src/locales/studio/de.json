@@ -537,5 +537,6 @@
   "booking.done.pending": "Zahlung wird verarbeitet",
   "booking.done.cancelled": "Dieser Termin wurde storniert oder ist abgelaufen.",
   "booking.done.ics": "Zu meinem Kalender (.ics)",
+  "booking.widget.showSlots": "Die nächsten 3 freien Zeiten anzeigen",
   "studio.nav.booking": "Buchungen"
 }

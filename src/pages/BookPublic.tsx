@@ -11,13 +11,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
 import { createBooking, getPublicEventType, getPublicSlots } from "@/lib/booking-engine/booking.functions";
+import { IntakeForm } from "@/components/booking/IntakeForm";
+import { validateIntake, type IntakeAnswers } from "@/lib/booking-engine/intake";
+import { offeredSelection } from "@/lib/booking-engine/selection";
 
 /** Day key of an instant in the visitor's zone. */
 function localDayKey(iso: string, tz: string) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 }
 
-export default function BookPublic({ eventTypeId }: { eventTypeId: string }) {
+export default function BookPublic({ eventTypeId, selectedStart }: { eventTypeId: string; selectedStart?: string }) {
   const { t, locale } = useI18n();
   const navigate = useNavigate();
   const getType = useServerFn(getPublicEventType);
@@ -45,6 +48,15 @@ export default function BookPublic({ eventTypeId }: { eventTypeId: string }) {
   const [form, setForm] = useState({ name: "", email: "", note: "" });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<IntakeAnswers>({});
+  const [selectionApplied, setSelectionApplied] = useState(false);
+
+  useEffect(() => {
+    if (selectionApplied || !slotsQ.data) return;
+    const offered = offeredSelection(selectedStart, slotsQ.data.slots);
+    if (offered) { setDay(localDayKey(offered, tz)); setSlot(offered); }
+    setSelectionApplied(true);
+  }, [selectedStart, slotsQ.data, tz, selectionApplied]);
 
   const et = typeQ.data;
   if (typeQ.isLoading) return <AppLayout><div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></AppLayout>;
@@ -55,10 +67,12 @@ export default function BookPublic({ eventTypeId }: { eventTypeId: string }) {
   const LocIcon = et.locationKind === "video" ? Video : et.locationKind === "phone" ? Phone : MapPin;
 
   const submit = async () => {
-    if (!slot) return;
+    if (!slot || sending) return;
+    const checked = validateIntake(et.customFields, answers);
+    if (!checked.ok) { setError(t("booking.err.invalid")); return; }
     setSending(true);
     setError(null);
-    const r = await book({ data: { eventTypeId, startUtc: slot, guestName: form.name, guestEmail: form.email, guestTimezone: tz, guestNote: form.note || null } })
+    const r = await book({ data: { eventTypeId, startUtc: slot, guestName: form.name, guestEmail: form.email, guestTimezone: tz, guestNote: form.note || null, intakeAnswers: checked.answers } })
       .catch(() => ({ ok: false as const, reason: "invalid" as const }));
     setSending(false);
     if (r.ok) {
@@ -69,7 +83,7 @@ export default function BookPublic({ eventTypeId }: { eventTypeId: string }) {
     if (r.reason === "slot_taken") { setError(t("booking.public.slotTaken")); setSlot(null); void slotsQ.refetch(); }
     else if (r.reason === "payment_unavailable") setError(t("booking.public.paymentUnavailable"));
     else if (r.reason === "rate_limited") setError(t("booking.public.rateLimited"));
-    else if (r.reason === "invalid") setError(t("booking.err.invalid"));
+    else if (r.reason === "invalid" || r.reason === "invalid_intake") setError(t("booking.err.invalid"));
     else setError(t("booking.err.generic"));
   };
 
@@ -120,7 +134,7 @@ export default function BookPublic({ eventTypeId }: { eventTypeId: string }) {
       </div>
 
       <Dialog open={Boolean(slot)} onOpenChange={(o) => !o && setSlot(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("booking.public.yourDetails")}</DialogTitle>
           </DialogHeader>
@@ -133,6 +147,7 @@ export default function BookPublic({ eventTypeId }: { eventTypeId: string }) {
             <div className="space-y-1.5"><Label htmlFor="bk-name">{t("booking.public.name")}</Label><Input id="bk-name" required maxLength={120} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="space-y-1.5"><Label htmlFor="bk-email">{t("booking.public.email")}</Label><Input id="bk-email" required type="email" maxLength={254} autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="space-y-1.5"><Label htmlFor="bk-note">{t("booking.public.note")}</Label><Textarea id="bk-note" maxLength={2000} rows={3} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></div>
+            <IntakeForm fields={et.customFields} answers={answers} onChange={setAnswers} />
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={sending}>
               {sending && <Loader2 className="h-4 w-4 animate-spin" />}

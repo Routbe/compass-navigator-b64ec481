@@ -537,5 +537,6 @@
   "booking.done.pending": "Paiement en cours",
   "booking.done.cancelled": "Ce rendez-vous a été annulé ou a expiré.",
   "booking.done.ics": "Ajouter à mon agenda (.ics)",
+  "booking.widget.showSlots": "Afficher les 3 prochains créneaux libres",
   "studio.nav.booking": "Réservations"
 }

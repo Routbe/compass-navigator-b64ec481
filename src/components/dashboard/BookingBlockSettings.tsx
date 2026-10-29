@@ -1,4 +1,6 @@
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { useI18n } from "@/lib/i18n";
 import {
   BOOKING_DURATIONS,
   parseBookingConfig,
@@ -16,6 +18,7 @@ export function BookingBlockSettings({
   onChange: (value: string) => void;
   onTitle: (label: string) => void;
 }) {
+  const { t } = useI18n();
   const config = parseBookingConfig(value);
 
   const update = (patch: Partial<BookingConfig>) => {
@@ -85,6 +88,13 @@ export function BookingBlockSettings({
           Cal.com / Google embed
         </button>
       </div>
+
+      {config.mode === "direct" && (
+        <label className="flex items-center justify-between gap-3 text-xs">
+          {t("booking.widget.showSlots")}
+          <Switch checked={config.showSlots} onCheckedChange={(showSlots) => update({ showSlots })} />
+        </label>
+      )}
 
       {config.mode === "embed" ? (
         <Input
