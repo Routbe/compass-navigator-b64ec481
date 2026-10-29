@@ -5,23 +5,24 @@
  *
  *   MIGRATION_URL=... bun scripts/audit-rls.ts
  */
-import { Pool } from "@neondatabase/serverless";
-
-const url = process.env["MIGRATION_URL"] ?? process.env["DATABASE_URL"];
-if (!url) { console.error("MIGRATION_URL ontbreekt."); process.exit(1); }
-const pool = new Pool({ connectionString: url });
-const tables = (await pool.query(`select c.relname as t, c.relrowsecurity as rls,
-    (select count(*)::int from pg_policy p where p.polrelid = c.oid) as policies,
-    array_agg(distinct a.attname::text) as cols
-  from pg_class c join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
-  join pg_attribute a on a.attrelid = c.oid and not a.attisdropped
-    and a.attname in ('user_id','owner_id','workspace_id','host_user_id')
-  where c.relkind = 'r' group by c.oid, c.relname, c.relrowsecurity order by c.relname`)).rows as { t: string; rls: boolean; policies: number; cols: string[] }[];
-const roles = (await pool.query(`select rolname from pg_roles where rolbypassrls and rolname not like 'pg_%'`)).rows as { rolname: string }[];
-await pool.end();
-
-const off = tables.filter((t) => !t.rls);
-console.log(`${tables.length} scoped tables; ${off.length} without RLS; ${tables.filter((t) => t.rls && !t.policies).length} deny-by-default (RLS on, no policy).`);
-console.log(`Roles bypassing RLS (scope enforced in server code): ${roles.map((r) => r.rolname).join(", ") || "none"}`);
-for (const t of off) console.log(`  MISSING RLS: ${t.t} (${t.cols.join(", ")})`);
-process.exit(off.length ? 1 : 0);
+import { writeFileSync } from "node:fs";
+import { RLS_AUDIT_QUERY, auditFailures, type AuditTable } from "./rls-audit-query";
+const key = process.env.NEON_API_KEY;
+const token = process.env.LOVABLE_API_KEY;
+if (!key || !token) throw new Error("Linked Neon credentials missing.");
+const response = await fetch("https://connector-gateway.lovable.dev/neon/sql", {
+  method: "POST", headers: { Authorization: `Bearer ${token}`, "X-Connection-Api-Key": key, "Content-Type": "application/json", "Neon-Batch-Read-Only": "true" },
+  body: JSON.stringify({ queries: [
+    { query: RLS_AUDIT_QUERY, params: [] },
+    { query: "select rolname, rolbypassrls from pg_roles where rolname in ('rout_app','neondb_owner')", params: [] },
+  ] }),
+});
+if (!response.ok) throw new Error(`Audit unavailable (${response.status}).`);
+const data = await response.json();
+const tables = data.results[0].rows as AuditTable[];
+const roles = data.results[1].rows.filter((r: { rolbypassrls: boolean }) => r.rolbypassrls).map((r: { rolname: string }) => r.rolname);
+const failures = auditFailures(tables, roles.filter((role: string) => role === "rout_app"));
+writeFileSync("/tmp/rls-audit.json", JSON.stringify({ tables, roles, failures }, null, 2));
+console.log(`${tables.length} scoped tables; ${failures.disabled.length} RLS disabled; ${failures.missingPolicies.length} without policies.`);
+console.log(`Application bypass roles: ${failures.bypassRoles.join(", ") || "none"}. Policy expressions saved for review; active-scope correctness is NOT automatically certified.`);
+process.exitCode = failures.disabled.length || failures.missingPolicies.length || failures.bypassRoles.length ? 1 : 0;

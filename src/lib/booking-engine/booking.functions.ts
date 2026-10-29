@@ -44,7 +44,10 @@ export const createBooking = createServerFn({ method: "POST" })
     const { bookSlot } = await import("./book.server");
     try {
       const r = await bookSlot(data);
-      return r.ok ? { ok: true as const, bookingId: r.bookingIds[0]!, status: r.status, checkoutUrl: r.checkoutUrl } : r;
+      if (!r.ok) return r;
+      const bookingId = r.bookingIds[0];
+      if (!bookingId) return { ok: false as const, reason: "error" as const };
+      return { ok: true as const, bookingId, status: r.status, checkoutUrl: r.checkoutUrl };
     } catch (e) {
       console.error("[booking] create", e instanceof Error ? e.message : "error");
       return { ok: false as const, reason: "error" as const };
