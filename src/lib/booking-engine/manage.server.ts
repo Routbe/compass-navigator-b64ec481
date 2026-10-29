@@ -42,7 +42,10 @@ async function assertCanManageEventType(userId: string, eventTypeId: string) {
   const r = rows[0];
   if (!r) throw new Error("not_found");
   if (r.user_id) { if (r.user_id !== userId) throw new Error("forbidden"); return r; }
-  await assertWorkspaceRole(userId, r.workspace_id!, ["owner", "admin"]);
+  if (!r.workspace_id) throw new Error("forbidden");
+  const active = await resolveActiveWorkspace(userId);
+  if (active.workspaceId !== r.workspace_id) throw new Error("forbidden");
+  await assertWorkspaceRole(userId, r.workspace_id, ["owner", "admin"]);
   return r;
 }
 
@@ -55,13 +58,16 @@ export async function overview(userId: string) {
     sql`select t.*, coalesce((select json_agg(json_build_object('userId', h.user_id, 'priority', h.priority) order by h.priority desc)
           from public.booking_event_type_hosts h where h.event_type_id = t.id), '[]'::json) as hosts
         from public.booking_event_types t
-        where t.user_id = ${userId}::uuid or (${canWs} and t.workspace_id = ${workspaceId}::uuid)
+        where (${workspaceId}::uuid is null and t.user_id = ${userId}::uuid and t.workspace_id is null)
+           or (${canWs} and t.workspace_id = ${workspaceId}::uuid)
         order by t.created_at desc limit 100`,
     sql`select id, adapter, label, sync_status, last_error_code, last_synced_at from public.connected_calendars
         where user_id = ${userId}::uuid order by created_at`,
     sql`select b.id, b.status, b.start_utc, b.end_utc, b.guest_name, b.guest_email, b.guest_timezone, b.guest_note, b.intake_answers, b.event_type_id, t.title, t.custom_fields
         from public.bookings b join public.booking_event_types t on t.id = b.event_type_id
-        where b.host_user_id = ${userId}::uuid and b.end_utc > now() - interval '1 day' and b.status = any(${ACTIVE}::text[])
+        where (( ${workspaceId}::uuid is null and b.host_user_id = ${userId}::uuid and b.workspace_id is null)
+          or (${canWs} and b.workspace_id = ${workspaceId}::uuid))
+          and b.end_utc > now() - interval '1 day' and b.status = any(${ACTIVE}::text[])
         order by (b.status = 'requested') desc, b.start_utc limit 100`,
     sql`select weekday, start_minute, end_minute, timezone from public.availability_rules where user_id = ${userId}::uuid order by weekday, start_minute`,
     canWs
@@ -104,6 +110,8 @@ export async function overview(userId: string) {
 }
 
 export async function saveEventType(userId: string, id: string | null, input: EventTypeInput) {
+  const active = await resolveActiveWorkspace(userId);
+  if (active.workspaceId !== input.workspaceId) throw new Error("forbidden");
   if (input.workspaceId) {
     await assertWorkspaceRole(userId, input.workspaceId, ["owner", "admin"]);
     const ok = (await sql`select count(*)::int as n from public.workspace_members where workspace_id = ${input.workspaceId}::uuid
