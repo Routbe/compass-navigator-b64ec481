@@ -1,4 +1,10 @@
 # Roadmap
+- [ ] Enterprise booking: publieke intakevragen en veilige opslag afronden
+- [ ] Enterprise booking: capaciteit en uitzonderingen controleren
+- [ ] Smart widget: drie vrije tijden en vooraf gekozen boekingscontext
+- [ ] Nieuwe migraties uitvoeren en volledige scope/RLS-audit verifiëren
+- [ ] Preview-testaccount seeden en ingelogde workspace/tabs/0 MB-upload controleren
+- [ ] Nieuwe regeltests en architectuurnotities afronden
 - [x] Fase 1: kleinere rondleiding-knop, Coach verkleint tot bolletje met %-ring
 - [x] Fase 2: één Coach-score met checklist (verificatie + extra pagina meegeteld)
 - [x] Fase 3: opslaglimiet op alle uploadpaden; video-links gevalideerd; concept/publiceren bestond al
